@@ -3,7 +3,7 @@
 build:
 	cd .. \
 		&& docker build \
-		-t pointnet-autoencoder-image \
+		-t pointnet-autoencoder-img \
 		-f pointnet-autoencoder/Dockerfile pointnet-autoencoder/
 
 run:
@@ -13,7 +13,7 @@ run:
 		-e DISPLAY=${DISPLAY} \
 		-v /tmp/.X11-unix:/tmp/.X11-unix \
 		--name pointnet-autoencoder-container \
-		pointnet-autoencoder-image
+		pointnet-autoencoder-img
 
 run-bash:
 	docker run \
@@ -22,11 +22,11 @@ run-bash:
 		--gpus all \
 		-e DISPLAY=${DISPLAY} \
 		-v /tmp/.X11-unix:/tmp/.X11-unix \
-		pointnet-autoencoder-image \
+		pointnet-autoencoder-img \
 		bash
 
 clean:
-	docker rmi -f pointnet-autoencoder-image
+	docker rmi -f pointnet-autoencoder-img
 
 tiny-clean:
 	docker container rm pointnet-autoencoder-container

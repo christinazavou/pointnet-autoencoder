@@ -1,6 +1,6 @@
 #tf_packages_path=/usr/local/lib/python2.7/dist-packages
 #tf_packages_path=/usr/local/lib/python3.5/dist-packages
-tf_packages_path=/opt/conda/envs/pointnetae/lib/python3.6/site-packages
+tf_packages_path=/opt/conda/envs/venv/lib/python3.6/site-packages
 cuda_path=/usr/local/cuda
 
 /usr/local/cuda/bin/nvcc tf_nndistance_g.cu -o tf_nndistance_g.cu.o -c -O2 -DGOOGLE_CUDA=1 -x cu -Xcompiler -fPIC
