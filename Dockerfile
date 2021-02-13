@@ -1,4 +1,4 @@
-FROM nvidia/cuda:8.0-cudnn7-devel-ubuntu16.04
+FROM nvidia/cuda:8.0-cudnn6-devel-ubuntu16.04
 
 WORKDIR /pointnet-autoencoder
 
@@ -26,23 +26,24 @@ RUN conda create -n venv python=3.6 \
     && /bin/bash -c "source activate venv \
 && pip install opencv-python \
 && pip install opencv-contrib-python \
-&& pip install tensorflow-gpu==1.4"
+&& pip install tensorflow-gpu==1.4 \
+&& conda install -c anaconda h5py"
 
 
-WORKDIR /pointnet-autoencoder/
+WORKDIR /opt/project
 
 COPY tf_ops/ tf_ops
 COPY models/ models/
 COPY utils/ utils
 
-RUN cd /pointnet-autoencoder/tf_ops/nn_distance \
+RUN cd /opt/project/tf_ops/nn_distance \
     && chmod 777 tf_nndistance_compile.sh \
     && sh tf_nndistance_compile.sh
 
-RUN cd /pointnet-autoencoder/tf_ops/approxmatch \
+RUN cd /opt/project/tf_ops/approxmatch \
     && chmod 777 tf_approxmatch_compile.sh \
     && sh tf_approxmatch_compile.sh
 
-RUN cd /pointnet-autoencoder/utils \
+RUN cd /opt/project/utils \
     && chmod 777 compile_render_balls_so.sh \
     && sh compile_render_balls_so.sh

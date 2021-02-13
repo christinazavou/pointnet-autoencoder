@@ -7,7 +7,7 @@ import os.path
 import json
 import numpy as np
 import sys
-BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+BASE_DIR = ""
 
 def pc_normalize(pc):
     """ pc: NxC, return NxC """
@@ -135,7 +135,7 @@ if __name__ == '__main__':
     tic = time.time()
     i = 100
     ps, seg = d[i]
-    print np.max(seg), np.min(seg)
+    print(np.max(seg), np.min(seg))
     print(time.time() - tic)
     print(ps.shape, type(ps), seg.shape,type(seg))
     sys.path.append('utils')
