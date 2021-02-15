@@ -9,12 +9,8 @@ import importlib
 import os
 import sys
 
-BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-ROOT_DIR = BASE_DIR
-sys.path.append(BASE_DIR)  # model
-sys.path.append(os.path.join(ROOT_DIR, 'models'))
-sys.path.append(os.path.join(ROOT_DIR, 'utils'))
-sys.path.append(os.path.join(ROOT_DIR, 'data_prep'))
+from models import model as MODEL
+from utils import tf_util
 import part_dataset
 
 parser = argparse.ArgumentParser()
@@ -45,11 +41,10 @@ OPTIMIZER = FLAGS.optimizer
 DECAY_STEP = FLAGS.decay_step
 DECAY_RATE = FLAGS.decay_rate
 
-MODEL = importlib.import_module(FLAGS.model)  # import network module
-MODEL_FILE = os.path.join(BASE_DIR, FLAGS.model + '.py')
+BASE_DIR = ""
 LOG_DIR = FLAGS.log_dir
 if not os.path.exists(LOG_DIR): os.mkdir(LOG_DIR)
-os.system('cp %s %s' % (MODEL_FILE, LOG_DIR))  # bkp of model def
+os.system('cp %s %s' % ("models/model.py", LOG_DIR))  # bkp of model def
 os.system('cp train.py %s' % (LOG_DIR))  # bkp of train procedure
 LOG_FOUT = open(os.path.join(LOG_DIR, 'log_train.txt'), 'w')
 LOG_FOUT.write(str(FLAGS) + '\n')
@@ -192,7 +187,7 @@ def train_one_epoch(sess, ops, train_writer):
     # Shuffle train samples
     train_idxs = np.arange(0, len(TRAIN_DATASET))
     np.random.shuffle(train_idxs)
-    num_batches = len(TRAIN_DATASET) / BATCH_SIZE
+    num_batches = len(TRAIN_DATASET) // BATCH_SIZE
 
     log_string(str(datetime.now()))
 
@@ -233,7 +228,7 @@ def eval_one_epoch(sess, ops, test_writer):
     global EPOCH_CNT
     is_training = False
     test_idxs = np.arange(0, len(TEST_DATASET))
-    num_batches = len(TEST_DATASET) / BATCH_SIZE
+    num_batches = len(TEST_DATASET) // BATCH_SIZE
 
     log_string(str(datetime.now()))
     log_string('---- EPOCH %03d EVALUATION ----' % (EPOCH_CNT))
@@ -244,6 +239,7 @@ def eval_one_epoch(sess, ops, test_writer):
         start_idx = batch_idx * BATCH_SIZE
         end_idx = (batch_idx + 1) * BATCH_SIZE
         batch_data, batch_label = get_batch(TEST_DATASET, test_idxs, start_idx, end_idx)
+        print("batch in test: ", batch_data.min(), batch_data.max(), batch_label.shape)
 
         feed_dict = {ops['pointclouds_pl']: batch_data,
                      ops['labels_pl']: batch_data,
