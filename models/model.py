@@ -161,6 +161,16 @@ if __name__ == '__main__':
         loss = get_loss(outputs[0], inputs, outputs[1])
         print(loss)
 
+        total_parameters = 0
+        for variable in tf.trainable_variables():
+            # shape is an array of tf.Dimension
+            shape = variable.get_shape()
+            variable_parameters = 1
+            for dim in shape:
+                variable_parameters *= dim.value
+            total_parameters += variable_parameters
+        print("Trainable parameters: {}".format(total_parameters))
+
         with tf.Session() as sess:
             sess.run(tf.global_variables_initializer())
             predictions, embeddings, loss = sess.run([outputs[0], outputs[1]['embedding'], loss[0]])
