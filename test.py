@@ -22,10 +22,16 @@ FLAGS = parser.parse_args()
 MODEL_PATH = FLAGS.model_path
 GPU_INDEX = FLAGS.gpu
 NUM_POINT = FLAGS.num_point
-DATA_PATH = os.path.join(BASE_DIR, 'data/shapenetcore_partanno_segmentation_benchmark_v0')
-TEST_DATASET = part_dataset.PartDataset(root=DATA_PATH, npoints=NUM_POINT, classification=False,
-                                        class_choice=FLAGS.category, split='test', normalize=True)
+# DATA_PATH = os.path.join(BASE_DIR, 'data/shapenetcore_partanno_segmentation_benchmark_v0')
+DATA_PATH = "/media/graphicslab/BigData/zavou/ANNFASS_CODE/style_detection/logs/buildnet_reconstruction_splits/ply_10K/split_train_val_test_debug"
+# TEST_DATASET = part_dataset.PartDataset(root=DATA_PATH, npoints=NUM_POINT, classification=False,
+#                                         class_choice=FLAGS.category, split='test', normalize=True)
+TEST_DATASET = part_dataset.BuildnetPartDataset(root=DATA_PATH, npoints=NUM_POINT, split='test', normalize=True)
 print(len(TEST_DATASET))
+# ACTUAL_DIR = "actual"
+ACTUAL_DIR = "actualBuildnet"
+# PREDICTIONS_DIR = "predictions"
+PREDICTIONS_DIR = "predictionsBuildnet"
 
 
 def get_model(batch_size, num_point):
@@ -113,13 +119,13 @@ def save_point_cloud(points_3d, filename, binary=True, with_label=False, verbose
 
 if __name__ == '__main__':
 
-    os.makedirs(os.path.join("log", "actual"), exist_ok=True)
-    os.makedirs(os.path.join("log", "predictions"), exist_ok=True)
+    os.makedirs(os.path.join("log", ACTUAL_DIR), exist_ok=True)
+    os.makedirs(os.path.join("log", PREDICTIONS_DIR), exist_ok=True)
     sess, ops = get_model(batch_size=1, num_point=NUM_POINT)
     indices = np.arange(len(TEST_DATASET))
     np.random.shuffle(indices)
     for i in range(len(TEST_DATASET)):
         ps, seg = TEST_DATASET[indices[i]]
         pred = inference(sess, ops, np.expand_dims(ps, 0), batch_size=1)
-        save_point_cloud(ps, os.path.join("log", "actual", "{}.ply".format(i)))
-        save_point_cloud(pred[0], os.path.join("log", "predictions", "{}.ply".format(i)))
+        save_point_cloud(ps, os.path.join("log", ACTUAL_DIR, "{}.ply".format(i)))
+        save_point_cloud(pred[0], os.path.join("log", PREDICTIONS_DIR, "{}.ply".format(i)))

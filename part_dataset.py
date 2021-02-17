@@ -7,8 +7,9 @@ import os.path
 import json
 import numpy as np
 import sys
+from plyfile import PlyData
 
-BASE_DIR = "/media/christina/Data/ANNFASS_code/zavou-repos/pointnet-autoencoder"
+BASE_DIR = "/media/graphicslab/BigData/zavou/ANNFASS_CODE/pointnet-autoencoder"
 
 
 def pc_normalize(pc):
@@ -130,22 +131,67 @@ class PartDataset():
         return len(self.datapath)
 
 
+class BuildnetPartDataset():
+    def __init__(self, root, npoints=2500, split='train', normalize=True):
+        self.npoints = npoints
+        self.root = root
+        self.normalize = normalize
+
+        self.split = split
+        self.datapath = []
+
+        with open(os.path.join(root, "{}.txt".format(split)), 'r') as f:
+            for line in f:
+                self.datapath.append(line.strip())
+
+        self.cache = {}  # from index to (point_set, cls, seg) tuple
+        self.cache_size = 18000
+
+    def __getitem__(self, index):
+        if index in self.cache:
+            point_set = self.cache[index]
+        else:
+            fn = self.datapath[index]
+
+            plydata = PlyData.read(fn)
+            data = plydata.elements[0].data
+            point_set = np.array([data['x'], data['y'], data['z']], dtype=np.float32).T
+
+            if self.normalize:
+                point_set = pc_normalize(point_set)
+            if len(self.cache) < self.cache_size:
+                self.cache[index] = point_set
+
+        choice = np.random.choice(len(point_set), self.npoints, replace=True)
+
+        point_set = point_set[choice]
+        return point_set, None
+
+    def __len__(self):
+        return len(self.datapath)
+
+
 if __name__ == '__main__':
-    d = PartDataset(root=os.path.join(BASE_DIR, 'data/shapenetcore_partanno_segmentation_benchmark_v0'),
-                    class_choice=['Chair'], split='trainval')
-    print(len(d))
-    import time
+    # d = PartDataset(root=os.path.join(BASE_DIR, 'data/shapenetcore_partanno_segmentation_benchmark_v0'),
+    #                 class_choice=['Chair'], split='trainval')
+    # print(len(d))
+    # import time
+    #
+    # tic = time.time()
+    # i = 100
+    # ps, seg = d[i]
+    # print(np.max(seg), np.min(seg))
+    # print(time.time() - tic)
+    # print(ps.shape, type(ps), seg.shape, type(seg))
+    # sys.path.append('utils')
+    #
+    # d = PartDataset(root=os.path.join(BASE_DIR, 'data/shapenetcore_partanno_segmentation_benchmark_v0'),
+    #                 classification=True)
+    # print(len(d))
+    # ps, cls = d[0]
+    # print(ps.shape, type(ps), cls.shape, type(cls))
 
-    tic = time.time()
-    i = 100
-    ps, seg = d[i]
-    print(np.max(seg), np.min(seg))
-    print(time.time() - tic)
-    print(ps.shape, type(ps), seg.shape, type(seg))
-    sys.path.append('utils')
-
-    d = PartDataset(root=os.path.join(BASE_DIR, 'data/shapenetcore_partanno_segmentation_benchmark_v0'),
-                    classification=True)
-    print(len(d))
-    ps, cls = d[0]
-    print(ps.shape, type(ps), cls.shape, type(cls))
+    buildnet_data, _ = BuildnetPartDataset("/media/graphicslab/BigData/zavou/ANNFASS_CODE/style_detection/logs/buildnet_reconstruction_splits/ply_10K/split_train_val_test_debug")
+    for i in range(5):
+        pts = buildnet_data[i]
+        print(pts.shape)
