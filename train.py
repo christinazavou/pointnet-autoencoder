@@ -17,7 +17,7 @@ parser = argparse.ArgumentParser()
 parser.add_argument('--gpu', type=int, default=0, help='GPU to use [default: GPU 0]')
 parser.add_argument('--model', default='model', help='Model name [default: model]')
 parser.add_argument('--category', default=None, help='Which single class to train on [default: None]')
-parser.add_argument('--log_dir', default='log', help='Log dir [default: log]')
+parser.add_argument('--log_dir', default='log.buildnet', help='Log dir [default: log]')
 parser.add_argument('--num_point', type=int, default=2048, help='Point Number [default: 2048]')
 parser.add_argument('--max_epoch', type=int, default=201, help='Epoch to run [default: 201]')
 parser.add_argument('--batch_size', type=int, default=32, help='Batch Size during training [default: 32]')
@@ -56,12 +56,16 @@ BN_DECAY_CLIP = 0.99
 
 HOSTNAME = socket.gethostname()
 
+# # Shapenet official train/test split
+# DATA_PATH = os.path.join(BASE_DIR, 'data/shapenetcore_partanno_segmentation_benchmark_v0')
+# TRAIN_DATASET = part_dataset.PartDataset(root=DATA_PATH, npoints=NUM_POINT, classification=False,
+#                                          class_choice=FLAGS.category, split='trainval')
+# TEST_DATASET = part_dataset.PartDataset(root=DATA_PATH, npoints=NUM_POINT, classification=False,
+#                                         class_choice=FLAGS.category, split='test')
 # Shapenet official train/test split
-DATA_PATH = os.path.join(BASE_DIR, 'data/shapenetcore_partanno_segmentation_benchmark_v0')
-TRAIN_DATASET = part_dataset.PartDataset(root=DATA_PATH, npoints=NUM_POINT, classification=False,
-                                         class_choice=FLAGS.category, split='trainval')
-TEST_DATASET = part_dataset.PartDataset(root=DATA_PATH, npoints=NUM_POINT, classification=False,
-                                        class_choice=FLAGS.category, split='test')
+DATA_PATH = "/media/graphicslab/BigData/zavou/ANNFASS_CODE/style_detection/logs/buildnet_reconstruction_splits/ply_10K/split_train_val_test"
+TRAIN_DATASET = part_dataset.BuildnetPartDataset(root=DATA_PATH, npoints=NUM_POINT, split='train')
+TEST_DATASET = part_dataset.BuildnetPartDataset(root=DATA_PATH, npoints=NUM_POINT, split='val')
 
 
 def log_string(out_str):
@@ -174,10 +178,9 @@ def get_batch(dataset, idxs, start_idx, end_idx):
     batch_data = np.zeros((bsize, NUM_POINT, 3))
     batch_label = np.zeros((bsize, NUM_POINT), dtype=np.int32)
     for i in range(bsize):
-        ps, seg = dataset[idxs[i + start_idx]]
+        ps, _ = dataset[idxs[i + start_idx]]
         batch_data[i, ...] = ps
-        batch_label[i, :] = seg
-    return batch_data, batch_label
+    return batch_data, None
 
 
 def train_one_epoch(sess, ops, train_writer):
@@ -196,7 +199,7 @@ def train_one_epoch(sess, ops, train_writer):
     for batch_idx in range(num_batches):
         start_idx = batch_idx * BATCH_SIZE
         end_idx = (batch_idx + 1) * BATCH_SIZE
-        batch_data, batch_label = get_batch(TRAIN_DATASET, train_idxs, start_idx, end_idx)
+        batch_data, _ = get_batch(TRAIN_DATASET, train_idxs, start_idx, end_idx)
         # Augment batched point clouds by rotation
         if FLAGS.no_rotation:
             aug_data = batch_data
@@ -238,8 +241,8 @@ def eval_one_epoch(sess, ops, test_writer):
     for batch_idx in range(num_batches):
         start_idx = batch_idx * BATCH_SIZE
         end_idx = (batch_idx + 1) * BATCH_SIZE
-        batch_data, batch_label = get_batch(TEST_DATASET, test_idxs, start_idx, end_idx)
-        print("batch in test: ", batch_data.min(), batch_data.max(), batch_label.shape)
+        batch_data, _ = get_batch(TEST_DATASET, test_idxs, start_idx, end_idx)
+        print("batch in test: ", batch_data.min(), batch_data.max())
 
         feed_dict = {ops['pointclouds_pl']: batch_data,
                      ops['labels_pl']: batch_data,

@@ -13,25 +13,29 @@ parser.add_argument('--gpu', type=int, default=0, help='GPU to use [default: GPU
 parser.add_argument('--num_point', type=int, default=2048, help='Point Number [default: 2048]')
 parser.add_argument('--category', default=None, help='Which single class to train on [default: None]')
 parser.add_argument('--model', default='model', help='Model name [default: model]')
-parser.add_argument('--model_path', default='log/model.ckpt',
+parser.add_argument('--log_dir', default='log.buildnet', help='Log dir [default: log]')
+parser.add_argument('--eval_dir', default='evaluation', help='Eval dir [default: evaluation]')
+parser.add_argument('--model_path', default='model.ckpt',
                     help='model checkpoint file path [default: log/model.ckpt]')
+parser.add_argument('--data_path', required=True)
 parser.add_argument('--num_group', type=int, default=1,
                     help='Number of groups of generated points -- used for hierarchical FC decoder. [default: 1]')
 FLAGS = parser.parse_args()
 
-MODEL_PATH = FLAGS.model_path
+MODEL_PATH = os.path.join(FLAGS.log_dir, FLAGS.model_path)
 GPU_INDEX = FLAGS.gpu
 NUM_POINT = FLAGS.num_point
+LOG_DIR = FLAGS.log_dir
+DATA_PATH = FLAGS.data_path
+EVAL_DIR = FLAGS.eval_dir
 # DATA_PATH = os.path.join(BASE_DIR, 'data/shapenetcore_partanno_segmentation_benchmark_v0')
-DATA_PATH = "/media/graphicslab/BigData/zavou/ANNFASS_CODE/style_detection/logs/buildnet_reconstruction_splits/ply_10K/split_train_val_test_debug"
 # TEST_DATASET = part_dataset.PartDataset(root=DATA_PATH, npoints=NUM_POINT, classification=False,
 #                                         class_choice=FLAGS.category, split='test', normalize=True)
 TEST_DATASET = part_dataset.BuildnetPartDataset(root=DATA_PATH, npoints=NUM_POINT, split='test', normalize=True)
 print(len(TEST_DATASET))
-# ACTUAL_DIR = "actual"
-ACTUAL_DIR = "actualBuildnet"
-# PREDICTIONS_DIR = "predictions"
-PREDICTIONS_DIR = "predictionsBuildnet"
+ACTUAL_DIR = "actual"
+PREDICTIONS_DIR = "predictions"
+EMBEDDINGS_DIR = "embeddings"
 
 
 def get_model(batch_size, num_point):
@@ -53,7 +57,8 @@ def get_model(batch_size, num_point):
                'labels_pl': labels_pl,
                'is_training_pl': is_training_pl,
                'pred': pred,
-               'loss': loss}
+               'loss': loss,
+               'embedding': end_points['embedding']}
         return sess, ops
 
 
@@ -62,12 +67,14 @@ def inference(sess, ops, pc, batch_size):
     assert pc.shape[0] % batch_size == 0
     num_batches = pc.shape[0] // batch_size
     logits = np.zeros((pc.shape[0], pc.shape[1], 3))
+    embeddings = []
     for i in range(num_batches):
         feed_dict = {ops['pointclouds_pl']: pc[i * batch_size:(i + 1) * batch_size, ...],
                      ops['is_training_pl']: False}
-        batch_logits = sess.run(ops['pred'], feed_dict=feed_dict)
+        batch_logits, batch_embeddings = sess.run([ops['pred'], ops['embedding']], feed_dict=feed_dict)
         logits[i * batch_size:(i + 1) * batch_size, ...] = batch_logits
-    return logits
+        embeddings.append(batch_embeddings)
+    return logits, np.vstack(embeddings)
 
 
 def save_point_cloud(points_3d, filename, binary=True, with_label=False, verbose=True):
@@ -119,13 +126,15 @@ def save_point_cloud(points_3d, filename, binary=True, with_label=False, verbose
 
 if __name__ == '__main__':
 
-    os.makedirs(os.path.join("log", ACTUAL_DIR), exist_ok=True)
-    os.makedirs(os.path.join("log", PREDICTIONS_DIR), exist_ok=True)
+    os.makedirs(os.path.join(LOG_DIR, EVAL_DIR, ACTUAL_DIR), exist_ok=True)
+    os.makedirs(os.path.join(LOG_DIR, EVAL_DIR, PREDICTIONS_DIR), exist_ok=True)
+    os.makedirs(os.path.join(LOG_DIR, EVAL_DIR, EMBEDDINGS_DIR), exist_ok=True)
     sess, ops = get_model(batch_size=1, num_point=NUM_POINT)
     indices = np.arange(len(TEST_DATASET))
     np.random.shuffle(indices)
     for i in range(len(TEST_DATASET)):
         ps, seg = TEST_DATASET[indices[i]]
-        pred = inference(sess, ops, np.expand_dims(ps, 0), batch_size=1)
-        save_point_cloud(ps, os.path.join("log", ACTUAL_DIR, "{}.ply".format(i)))
-        save_point_cloud(pred[0], os.path.join("log", PREDICTIONS_DIR, "{}.ply".format(i)))
+        pred, emb = inference(sess, ops, np.expand_dims(ps, 0), batch_size=1)
+        np.save(os.path.join(LOG_DIR, EVAL_DIR, EMBEDDINGS_DIR, "{}.npy".format(i)), emb)
+        save_point_cloud(ps, os.path.join(LOG_DIR, EVAL_DIR, ACTUAL_DIR, "{}.ply".format(i)))
+        save_point_cloud(pred[0], os.path.join(LOG_DIR, EVAL_DIR, PREDICTIONS_DIR, "{}.ply".format(i)))
