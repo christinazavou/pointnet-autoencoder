@@ -191,7 +191,35 @@ if __name__ == '__main__':
     # ps, cls = d[0]
     # print(ps.shape, type(ps), cls.shape, type(cls))
 
-    buildnet_data, _ = BuildnetPartDataset("/media/graphicslab/BigData/zavou/ANNFASS_CODE/style_detection/logs/buildnet_reconstruction_splits/ply_10K/split_train_val_test_debug")
-    for i in range(5):
-        pts = buildnet_data[i]
-        print(pts.shape)
+    # buildnet_data, _ = BuildnetPartDataset("/media/graphicslab/BigData/zavou/ANNFASS_CODE/style_detection/logs/buildnet_reconstruction_splits/ply_10K/split_train_val_test_debug")
+    # for i in range(5):
+    #     pts = buildnet_data[i]
+    #     print(pts.shape)
+
+    NUM_POINT = 1024
+    BATCH_SIZE = 32
+    def get_batch(dataset, idxs, start_idx, end_idx):
+        bsize = end_idx - start_idx
+        batch_data = np.zeros((bsize, NUM_POINT, 3))
+        batch_label = np.zeros((bsize, NUM_POINT), dtype=np.int32)
+        for i in range(bsize):
+            ps, _ = dataset[idxs[i + start_idx]]
+            batch_data[i, ...] = ps
+        return batch_data, None
+
+    # mydataset = BuildnetPartDataset("/media/graphicslab/BigData/zavou/ANNFASS_CODE/style_detection/logs/annfass_splits_march_component/ply_max100K_per_component/split_train_val_test")
+    mydataset = BuildnetPartDataset("/media/graphicslab/BigData/zavou/ANNFASS_CODE/style_detection/logs/annfass_splits_march/ply100K/split_train_val_test_custom", npoints=1024)
+    train_idxs = np.arange(0, len(mydataset))
+
+    num_batches = len(mydataset) // BATCH_SIZE
+    if num_batches == 0 and len(mydataset) > 0:
+        num_batches = 1
+
+    for batch_idx in range(num_batches):
+        start_idx = batch_idx * BATCH_SIZE
+        end_idx = (batch_idx + 1) * BATCH_SIZE
+        batch_data, _ = get_batch(mydataset, train_idxs, start_idx, end_idx)
+        print(batch_data)
+    # for i in range(5):
+    #     pts, _ = annfass_component_data[i]
+    #     print(pts.shape)

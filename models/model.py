@@ -70,6 +70,59 @@ def get_model(point_cloud, is_training, bn_decay=None):
     return net, end_points
 
 
+def get_small_model(point_cloud, is_training, bn_decay=None):
+    """ Autoencoder for point clouds.
+    Input:
+        point_cloud: TF tensor BxNx3
+        is_training: boolean
+        bn_decay: float between 0 and 1
+    Output:
+        net: TF tensor BxNx3, reconstructed point clouds
+        end_points: dict
+    """
+    batch_size = point_cloud.get_shape()[0].value
+    num_point = point_cloud.get_shape()[1].value
+    point_dim = point_cloud.get_shape()[2].value
+    end_points = {}
+
+    input_image = tf.expand_dims(point_cloud, -1)
+
+    # Encoder
+    net = tf_util.conv2d(input_image, 32, [1, point_dim],
+                         padding='VALID', stride=[1, 1],
+                         bn=True, is_training=is_training,
+                         scope='conv1', bn_decay=bn_decay)
+    net = tf_util.conv2d(net, 32, [1, 1],
+                         padding='VALID', stride=[1, 1],
+                         bn=True, is_training=is_training,
+                         scope='conv2', bn_decay=bn_decay)
+    point_feat = tf_util.conv2d(net, 32, [1, 1],
+                                padding='VALID', stride=[1, 1],
+                                bn=True, is_training=is_training,
+                                scope='conv3', bn_decay=bn_decay)
+    net = tf_util.conv2d(point_feat, 64, [1, 1],
+                         padding='VALID', stride=[1, 1],
+                         bn=True, is_training=is_training,
+                         scope='conv4', bn_decay=bn_decay)
+    net = tf_util.conv2d(net, 256, [1, 1],
+                         padding='VALID', stride=[1, 1],
+                         bn=True, is_training=is_training,
+                         scope='conv5', bn_decay=bn_decay)
+    global_feat = tf_util.max_pool2d(net, [num_point, 1],
+                                     padding='VALID', scope='maxpool')
+
+    net = tf.reshape(global_feat, [batch_size, -1])
+    end_points['embedding'] = net
+
+    # FC Decoder
+    net = tf_util.fully_connected(net, 256, bn=True, is_training=is_training, scope='fc1', bn_decay=bn_decay)
+    net = tf_util.fully_connected(net, 256, bn=True, is_training=is_training, scope='fc2', bn_decay=bn_decay)
+    net = tf_util.fully_connected(net, num_point * 3, activation_fn=None, scope='fc3')
+    net = tf.reshape(net, (batch_size, num_point, 3))
+
+    return net, end_points
+
+
 def get_debug_model(point_cloud, is_training, bn_decay=None):
     """ Autoencoder for point clouds.
     Input:
@@ -158,8 +211,9 @@ if __name__ == '__main__':
     with tf.Graph().as_default():
         inputs = tf.random.uniform((32, 1024, 3))
         outputs = get_debug_model(inputs, tf.constant(True))
-        loss = get_loss(outputs[0], inputs, outputs[1])
-        print(loss)
+        # loss = get_loss(outputs[0], inputs, outputs[1])
+        # print(loss)
+        # predictions, endpoints = get_small_model(inputs, tf.constant(True))
 
         total_parameters = 0
         for variable in tf.trainable_variables():
@@ -170,7 +224,7 @@ if __name__ == '__main__':
                 variable_parameters *= dim.value
             total_parameters += variable_parameters
         print("Trainable parameters: {}".format(total_parameters))
-
+        exit()
         with tf.Session() as sess:
             sess.run(tf.global_variables_initializer())
             predictions, embeddings, loss = sess.run([outputs[0], outputs[1]['embedding'], loss[0]])
