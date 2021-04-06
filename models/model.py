@@ -27,7 +27,7 @@ def get_model(point_cloud, is_training, bn_decay=None):
         net: TF tensor BxNx3, reconstructed point clouds
         end_points: dict
     """
-    batch_size = point_cloud.get_shape()[0].value
+    # batch_size = point_cloud.get_shape()[0].value
     num_point = point_cloud.get_shape()[1].value
     point_dim = point_cloud.get_shape()[2].value
     end_points = {}
@@ -58,14 +58,14 @@ def get_model(point_cloud, is_training, bn_decay=None):
     global_feat = tf_util.max_pool2d(net, [num_point, 1],
                                      padding='VALID', scope='maxpool')
 
-    net = tf.reshape(global_feat, [batch_size, -1])
+    net = tf.squeeze(tf.squeeze(global_feat, 1), 1)
     end_points['embedding'] = net
 
     # FC Decoder
     net = tf_util.fully_connected(net, 1024, bn=True, is_training=is_training, scope='fc1', bn_decay=bn_decay)
     net = tf_util.fully_connected(net, 1024, bn=True, is_training=is_training, scope='fc2', bn_decay=bn_decay)
     net = tf_util.fully_connected(net, num_point * 3, activation_fn=None, scope='fc3')
-    net = tf.reshape(net, (batch_size, num_point, 3))
+    net = tf.reshape(net, (-1, num_point, 3))
 
     return net, end_points
 
@@ -80,7 +80,7 @@ def get_small_model(point_cloud, is_training, bn_decay=None):
         net: TF tensor BxNx3, reconstructed point clouds
         end_points: dict
     """
-    batch_size = point_cloud.get_shape()[0].value
+    # batch_size = point_cloud.get_shape()[0].value
     num_point = point_cloud.get_shape()[1].value
     point_dim = point_cloud.get_shape()[2].value
     end_points = {}
@@ -111,14 +111,14 @@ def get_small_model(point_cloud, is_training, bn_decay=None):
     global_feat = tf_util.max_pool2d(net, [num_point, 1],
                                      padding='VALID', scope='maxpool')
 
-    net = tf.reshape(global_feat, [batch_size, -1])
+    net = tf.squeeze(tf.squeeze(global_feat, 1), 1)
     end_points['embedding'] = net
 
     # FC Decoder
     net = tf_util.fully_connected(net, 256, bn=True, is_training=is_training, scope='fc1', bn_decay=bn_decay)
     net = tf_util.fully_connected(net, 256, bn=True, is_training=is_training, scope='fc2', bn_decay=bn_decay)
     net = tf_util.fully_connected(net, num_point * 3, activation_fn=None, scope='fc3')
-    net = tf.reshape(net, (batch_size, num_point, 3))
+    net = tf.reshape(net, (-1, num_point, 3))
 
     return net, end_points
 
@@ -136,7 +136,7 @@ def get_debug_model(point_cloud, is_training, bn_decay=None):
 
     debug_checks = {}
 
-    batch_size = point_cloud.get_shape()[0].value
+    # batch_size = point_cloud.get_shape()[0].value
     num_point = point_cloud.get_shape()[1].value
     point_dim = point_cloud.get_shape()[2].value
     end_points = {}
@@ -179,7 +179,7 @@ def get_debug_model(point_cloud, is_training, bn_decay=None):
                                      padding='VALID', scope='maxpool')
     debug_checks['global_feat'] = global_feat
 
-    net = tf.reshape(global_feat, [batch_size, -1])
+    net = tf.squeeze(tf.squeeze(global_feat, 1), 1)
     end_points['embedding'] = net
     debug_checks['embedding'] = net
 
@@ -193,7 +193,7 @@ def get_debug_model(point_cloud, is_training, bn_decay=None):
     net = tf_util.fully_connected(net, num_point * 3, activation_fn=None, scope='fc3')
     debug_checks['fc3'] = net
 
-    net = tf.reshape(net, (batch_size, num_point, 3))
+    net = tf.reshape(net, (-1, num_point, 3))
     debug_checks['prediction'] = net
 
     return net, end_points, debug_checks
@@ -211,7 +211,7 @@ if __name__ == '__main__':
     with tf.Graph().as_default():
         inputs = tf.random.uniform((32, 1024, 3))
         outputs = get_debug_model(inputs, tf.constant(True))
-        # loss = get_loss(outputs[0], inputs, outputs[1])
+        loss = get_loss(outputs[0], inputs, outputs[1])
         # print(loss)
         # predictions, endpoints = get_small_model(inputs, tf.constant(True))
 
@@ -224,7 +224,7 @@ if __name__ == '__main__':
                 variable_parameters *= dim.value
             total_parameters += variable_parameters
         print("Trainable parameters: {}".format(total_parameters))
-        exit()
+        # exit()
         with tf.Session() as sess:
             sess.run(tf.global_variables_initializer())
             predictions, embeddings, loss = sess.run([outputs[0], outputs[1]['embedding'], loss[0]])

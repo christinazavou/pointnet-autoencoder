@@ -5,19 +5,20 @@ import os
 import part_dataset
 from models import model as MODEL
 from plyfile import PlyData, PlyElement
+import socket
 
 BASE_DIR = ""
 
 parser = argparse.ArgumentParser()
 parser.add_argument('--gpu', type=int, default=0, help='GPU to use [default: GPU 0]')
-parser.add_argument('--num_point', type=int, default=2048, help='Point Number [default: 2048]')
+parser.add_argument('--num_point', type=int, default=4096, help='Point Number [default: 2048]')
 parser.add_argument('--category', default=None, help='Which single class to train on [default: None]')
 parser.add_argument('--model', default='model', help='Model name [default: model]')
-parser.add_argument('--log_dir', default='log.buildnet', help='Log dir [default: log]')
-parser.add_argument('--eval_dir', default='evaluation', help='Eval dir [default: evaluation]')
+parser.add_argument('--log_dir', default='log.annfass.small.l', help='Log dir [default: log]')
+parser.add_argument('--eval_dir', default='evaluation.test', help='Eval dir [default: evaluation]')
 parser.add_argument('--model_path', default='model.ckpt',
                     help='model checkpoint file path [default: log/model.ckpt]')
-parser.add_argument('--data_path', required=True)
+# parser.add_argument('--data_path', required=True)
 parser.add_argument('--num_group', type=int, default=1,
                     help='Number of groups of generated points -- used for hierarchical FC decoder. [default: 1]')
 FLAGS = parser.parse_args()
@@ -26,16 +27,19 @@ MODEL_PATH = os.path.join(FLAGS.log_dir, FLAGS.model_path)
 GPU_INDEX = FLAGS.gpu
 NUM_POINT = FLAGS.num_point
 LOG_DIR = FLAGS.log_dir
-DATA_PATH = FLAGS.data_path
+# DATA_PATH = FLAGS.data_path
 EVAL_DIR = FLAGS.eval_dir
 # DATA_PATH = os.path.join(BASE_DIR, 'data/shapenetcore_partanno_segmentation_benchmark_v0')
 # TEST_DATASET = part_dataset.PartDataset(root=DATA_PATH, npoints=NUM_POINT, classification=False,
 #                                         class_choice=FLAGS.category, split='test', normalize=True)
+DATA_PATH = "/media/graphicslab/BigData/zavou/ANNFASS_CODE/style_detection/logs/annfass_splits_march/ply100K/split_train_val_test_custom"
 TEST_DATASET = part_dataset.BuildnetPartDataset(root=DATA_PATH, npoints=NUM_POINT, split='test', normalize=True)
 print(len(TEST_DATASET))
 ACTUAL_DIR = "actual"
 PREDICTIONS_DIR = "predictions"
 EMBEDDINGS_DIR = "embeddings"
+
+HOSTNAME = socket.gethostname()
 
 
 def get_model(batch_size, num_point):
@@ -43,7 +47,8 @@ def get_model(batch_size, num_point):
         with tf.device('/gpu:' + str(GPU_INDEX)):
             pointclouds_pl, labels_pl = MODEL.placeholder_inputs(batch_size, num_point)
             is_training_pl = tf.placeholder(tf.bool, shape=())
-            pred, end_points = MODEL.get_model(pointclouds_pl, is_training_pl)
+            # pred, end_points = MODEL.get_model(pointclouds_pl, is_training_pl)
+            pred, end_points = MODEL.get_small_model(pointclouds_pl, is_training_pl)
             loss = MODEL.get_loss(pred, labels_pl, end_points)
             saver = tf.train.Saver()
         # Create a session

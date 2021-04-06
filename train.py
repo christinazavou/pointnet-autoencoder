@@ -13,14 +13,14 @@ parser = argparse.ArgumentParser()
 parser.add_argument('--gpu', type=int, default=0, help='GPU to use [default: GPU 0]')
 parser.add_argument('--model', default='model', help='Model name [default: model]')
 parser.add_argument('--category', default=None, help='Which single class to train on [default: None]')
-parser.add_argument('--log_dir', default='log.buildnet', help='Log dir [default: log]')
-parser.add_argument('--num_point', type=int, default=2048, help='Point Number [default: 2048]')
-parser.add_argument('--max_epoch', type=int, default=201, help='Epoch to run [default: 201]')
-parser.add_argument('--batch_size', type=int, default=32, help='Batch Size during training [default: 32]')
+parser.add_argument('--log_dir', default='log.partnet.debug', help='Log dir [default: log]')
+parser.add_argument('--num_point', type=int, default=4096, help='Point Number [default: 2048]')
+parser.add_argument('--max_epoch', type=int, default=500, help='Epoch to run [default: 201]')
+parser.add_argument('--batch_size', type=int, default=4, help='Batch Size during training [default: 32]')
 parser.add_argument('--learning_rate', type=float, default=0.001, help='Initial learning rate [default: 0.001]')
 parser.add_argument('--momentum', type=float, default=0.9, help='Initial learning rate [default: 0.9]')
 parser.add_argument('--optimizer', default='adam', help='adam or momentum [default: adam]')
-parser.add_argument('--decay_step', type=int, default=200000, help='Decay step for lr decay [default: 200000]')
+parser.add_argument('--decay_step', type=int, default=2000, help='Decay step for lr decay [default: 200000]')
 parser.add_argument('--decay_rate', type=float, default=0.7, help='Decay rate for lr decay [default: 0.7]')
 parser.add_argument('--no_rotation', action='store_true', help='Disable random rotation during training.')
 FLAGS = parser.parse_args()
@@ -53,15 +53,16 @@ BN_DECAY_CLIP = 0.99
 HOSTNAME = socket.gethostname()
 
 # # Shapenet official train/test split
-# DATA_PATH = os.path.join(BASE_DIR, 'data/shapenetcore_partanno_segmentation_benchmark_v0')
-# TRAIN_DATASET = part_dataset.PartDataset(root=DATA_PATH, npoints=NUM_POINT, classification=False,
-#                                          class_choice=FLAGS.category, split='trainval')
-# TEST_DATASET = part_dataset.PartDataset(root=DATA_PATH, npoints=NUM_POINT, classification=False,
-#                                         class_choice=FLAGS.category, split='test')
-# Shapenet official train/test split
-DATA_PATH = "/media/graphicslab/BigData/zavou/ANNFASS_CODE/style_detection/logs/buildnet_reconstruction_splits/ply_10K/split_train_val_test"
-TRAIN_DATASET = part_dataset.BuildnetPartDataset(root=DATA_PATH, npoints=NUM_POINT, split='train')
-TEST_DATASET = part_dataset.BuildnetPartDataset(root=DATA_PATH, npoints=NUM_POINT, split='val')
+DATA_PATH = os.path.join(BASE_DIR, 'data/shapenetcore_partanno_segmentation_benchmark_v0')
+TRAIN_DATASET = part_dataset.PartDataset(root=DATA_PATH, npoints=NUM_POINT, classification=False,
+                                         class_choice=FLAGS.category, split='trainval')
+TEST_DATASET = part_dataset.PartDataset(root=DATA_PATH, npoints=NUM_POINT, classification=False,
+                                        class_choice=FLAGS.category, split='test')
+
+# DATA_PATH = "/media/graphicslab/BigData/zavou/ANNFASS_CODE/style_detection/logs/buildnet_reconstruction_splits/ply_10K/split_train_val_test"
+# DATA_PATH = "/media/graphicslab/BigData/zavou/ANNFASS_CODE/style_detection/logs/annfass_splits_march/ply100K/split_train_val_test_custom"
+# TRAIN_DATASET = part_dataset.BuildnetPartDataset(root=DATA_PATH, npoints=NUM_POINT, split='train')
+# TEST_DATASET = part_dataset.BuildnetPartDataset(root=DATA_PATH, npoints=NUM_POINT, split='val')
 
 
 def log_string(out_str):
@@ -108,6 +109,7 @@ def train():
             print("--- Get model and loss")
             # Get model and loss
             pred, end_points = MODEL.get_model(pointclouds_pl, is_training_pl, bn_decay=bn_decay)
+            # pred, end_points = MODEL.get_small_model(pointclouds_pl, is_training_pl, bn_decay=bn_decay)
             loss, end_points = MODEL.get_loss(pred, labels_pl, end_points)
             tf.summary.scalar('loss', loss)
 
@@ -201,6 +203,8 @@ def train_one_epoch(sess, ops, train_writer):
             aug_data = batch_data
         else:
             aug_data = part_dataset.rotate_point_cloud(batch_data)
+        # if np.random.random() > 0.5:
+        #     aug_data = aug_data[:2, :, :]
         feed_dict = {ops['pointclouds_pl']: aug_data,
                      ops['labels_pl']: aug_data,
                      ops['is_training_pl']: is_training, }
