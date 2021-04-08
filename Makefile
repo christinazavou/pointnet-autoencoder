@@ -15,3 +15,8 @@ test-annfass:
 			--data_path $(ANNFASS_SPLIT)/ply_10K/split_train_val_test \
 			--eval_dir annfass_evaluation
 
+run-partnet-vae-cluster:
+	export LOG_DIR=/mnt/nfs/work1/kalo/maverkiou/zavou/data/logs/shapenet_vae/default \
+		&& export INPUT_DATA=/mnt/nfs/work1/kalo/maverkiou/zavou/data/logs/shapenetcore_partanno_segmentation_benchmark_v0 \
+		&& export MAIN_FILE=train_vae.py \
+		&& sbatch --job-name=SpVae --partition=titanx-long train.sh

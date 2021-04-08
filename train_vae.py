@@ -12,6 +12,7 @@ import part_dataset
 parser = argparse.ArgumentParser()
 parser.add_argument('--gpu', type=int, default=0, help='GPU to use [default: GPU 0]')
 parser.add_argument('--model', default='model', help='Model name [default: model]')
+parser.add_argument('--inp_data', default='data/shapenetcore_partanno_segmentation_benchmark_v0')
 parser.add_argument('--category', default=None, help='Which single class to train on [default: None]')
 parser.add_argument('--log_dir', default='log.partnet.vae', help='Log dir [default: log]')
 parser.add_argument('--num_point', type=int, default=4096, help='Point Number [default: 2048]')
@@ -54,17 +55,15 @@ BN_DECAY_CLIP = 0.99
 
 HOSTNAME = socket.gethostname()
 
-# # Shapenet official train/test split
-DATA_PATH = os.path.join(BASE_DIR, 'data/shapenetcore_partanno_segmentation_benchmark_v0')
-TRAIN_DATASET = part_dataset.PartDataset(root=DATA_PATH, npoints=NUM_POINT, classification=False,
-                                         class_choice=FLAGS.category, split='trainval')
-TEST_DATASET = part_dataset.PartDataset(root=DATA_PATH, npoints=NUM_POINT, classification=False,
-                                        class_choice=FLAGS.category, split='test')
-
-# DATA_PATH = "/media/graphicslab/BigData/zavou/ANNFASS_CODE/style_detection/logs/buildnet_reconstruction_splits/ply_10K/split_train_val_test"
-# DATA_PATH = "/media/graphicslab/BigData/zavou/ANNFASS_CODE/style_detection/logs/annfass_splits_march/ply100K/split_train_val_test_custom"
-# TRAIN_DATASET = part_dataset.BuildnetPartDataset(root=DATA_PATH, npoints=NUM_POINT, split='train')
-# TEST_DATASET = part_dataset.BuildnetPartDataset(root=DATA_PATH, npoints=NUM_POINT, split='val')
+DATA_PATH = os.path.join(BASE_DIR, FLAGS.inp_data)
+if "shapenet" in DATA_PATH.lower():
+    TRAIN_DATASET = part_dataset.PartDataset(root=DATA_PATH, npoints=NUM_POINT, classification=False,
+                                             class_choice=FLAGS.category, split='trainval')
+    TEST_DATASET = part_dataset.PartDataset(root=DATA_PATH, npoints=NUM_POINT, classification=False,
+                                            class_choice=FLAGS.category, split='test')
+else:
+    TRAIN_DATASET = part_dataset.BuildnetPartDataset(root=DATA_PATH, npoints=NUM_POINT, split='train')
+    TEST_DATASET = part_dataset.BuildnetPartDataset(root=DATA_PATH, npoints=NUM_POINT, split='val')
 
 
 def log_string(out_str):
@@ -159,7 +158,7 @@ def train():
                'step': batch}
 
         best_loss = 1e20
-        for epoch in range(MAX_EPOCH):
+        for epoch in range(last_epoch, MAX_EPOCH):
             log_string('**** EPOCH %03d ****' % (epoch))
             sys.stdout.flush()
 
