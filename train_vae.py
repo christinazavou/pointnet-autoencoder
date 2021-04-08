@@ -23,6 +23,8 @@ parser.add_argument('--optimizer', default='adam', help='adam or momentum [defau
 parser.add_argument('--decay_step', type=int, default=2000, help='Decay step for lr decay [default: 200000]')
 parser.add_argument('--decay_rate', type=float, default=0.7, help='Decay rate for lr decay [default: 0.7]')
 parser.add_argument('--no_rotation', action='store_true', help='Disable random rotation during training.')
+parser.add_argument('--save_freq', default=1, type=int)
+parser.add_argument('--resume', default=None, type=str)
 FLAGS = parser.parse_args()
 
 EPOCH_CNT = 0
@@ -132,6 +134,11 @@ def train():
         config.log_device_placement = False
         sess = tf.Session(config=config)
 
+        if FLAGS.resume is not None:
+            saver.restore(sess, FLAGS.resume)
+            last_epoch = int("".join([d for d in os.path.basename(FLAGS.resume).split(".")[0] if d.isdigit()]))
+            print(f"Resuming...from epoch {last_epoch} with step {sess.run(batch)}")
+
         # Add summary writers
         merged = tf.summary.merge_all()
         train_writer = tf.summary.FileWriter(os.path.join(LOG_DIR, 'train'), sess.graph)
@@ -160,12 +167,12 @@ def train():
             epoch_loss = eval_one_epoch(sess, ops, test_writer)
             if epoch_loss < best_loss:
                 best_loss = epoch_loss
-                save_path = saver.save(sess, os.path.join(LOG_DIR, "best_model_epoch_%03d.ckpt" % (epoch)))
+                save_path = saver.save(sess, os.path.join(LOG_DIR, f"best_model_epoch_{epoch}.ckpt"), global_step=batch)
                 log_string("Model saved in file: %s" % save_path)
 
             # Save the variables to disk.
-            if epoch % 10 == 0:
-                save_path = saver.save(sess, os.path.join(LOG_DIR, "model.ckpt"))
+            if epoch % FLAGS.save_freq == 0:
+                save_path = saver.save(sess, os.path.join(LOG_DIR, f"model_epoch{epoch}.ckpt"), global_step=batch)
                 log_string("Model saved in file: %s" % save_path)
 
 
@@ -236,7 +243,6 @@ def eval_one_epoch(sess, ops, test_writer):
         start_idx = batch_idx * BATCH_SIZE
         end_idx = (batch_idx + 1) * BATCH_SIZE
         batch_data, _ = get_batch(TEST_DATASET, test_idxs, start_idx, end_idx)
-        print("batch in test: ", batch_data.min(), batch_data.max())
 
         feed_dict = {ops['pointclouds_pl']: batch_data,
                      ops['labels_pl']: batch_data,

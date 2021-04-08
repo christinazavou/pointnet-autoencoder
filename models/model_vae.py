@@ -90,19 +90,17 @@ def get_debug_decoder(net, num_point, is_training, bn_decay=None):
     debug_checks['fc2'] = net
     net = tf_util.fully_connected(net, num_point * 3, activation_fn=None, scope='fc3')
     debug_checks['fc3'] = net
-    net = tf.reshape(net, (-1, num_point, 3))
+    net = tf.reshape(net, (-1, num_point, 3))  # the new generated sample
 
     return net, debug_checks
 
 
 def reparameterise(mu, logvar, is_training):
-    zs = tf.cond(is_training, lambda: tf.random.normal(shape=mu.shape) * tf.exp(logvar * .5) + mu, lambda: mu)
+    # sample from normal distribution with mean mu and std logvar using the reparameterization trick
+    zs = tf.cond(is_training,
+                 lambda: tf.random.normal(shape=mu.shape) * tf.exp(logvar * .5) + mu,
+                 lambda: mu)
     return zs
-    # if is_training:
-    #     eps = tf.random.normal(shape=mu.shape)
-    #     return eps * tf.exp(logvar * .5) + mu
-    # else:
-    #     return mu
 
 
 def get_debug_model(point_cloud, is_training, bn_decay=None):
@@ -138,15 +136,18 @@ def log_normal_pdf(sample, mean, logvar, raxis=1):
       axis=raxis)
 
 
-def get_loss(z, mu, logvar, logits, x):
+def get_loss(z, mu, logvar, pred, label):
     """ z: Bx1x1024
-        logits: BxNx3,
+        pred: BxNx3,
         label: BxNx3, """
-    cross_ent = tf.nn.sigmoid_cross_entropy_with_logits(logits=logits, labels=x)
-    logpx_z = -tf.reduce_sum(cross_ent, axis=[1, 2])
-    logpz = log_normal_pdf(z, 0., 0.)
-    logqz_x = log_normal_pdf(z, mu, logvar)
-    return -tf.reduce_mean(logpx_z + logpz - logqz_x)
+    recon_loss = tf.reduce_mean(tfg.evaluate(pred, label))  # chamfer
+    kl_loss = 0.5 * tf.reduce_mean(tf.reduce_sum(tf.exp(logvar) + mu ** 2 - 1. - logvar, axis=1))
+
+    # logpx_z = -tf.reduce_sum(chamfer_dist, axis=[1, 2])
+    # logpz = log_normal_pdf(z, 0., 0.)
+    # logqz_x = log_normal_pdf(z, mu, logvar)
+    # return -tf.reduce_mean(logpx_z + logpz - logqz_x)
+    return recon_loss + kl_loss
 
 
 if __name__ == '__main__':
